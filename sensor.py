@@ -39,8 +39,6 @@ class GPS(Sensor):
         ln = -71.2637 # Origin - Olin's Location
         ER = 6.371e6 # Earth's Radius in M
         Rl = ER * np.abs(cos(d2r(lt))) # Radius at Latitude
-        print 'Rl', Rl
-        print 'ER', ER
 
         s_m = 1.5 # stddev in Meters
         # variance was around 1.4~3.0, sttdev = about 1.5
@@ -136,28 +134,46 @@ class Accelerometer(Sensor):
     def __init__(self):
         s_g = 2.8e-3
         s = s_g * 9.8 # m/s^2
-        print 's', s
         super(Accelerometer,self).__init__(s)
     def get(self,x):
         return self.add_noise(self.h(x))
     def h(self,x):
-        return np.atleast_2d(
+        pass
+    def H(self,x):
+        pass
 
 class IMU(Sensor):
     # Compass + Gyro + Accelerometer
     def __init__(self):
-        super(self,GPS).__init__()
+        super(IMU,self).__init__(0.0) # Obviously wrong
         pass
     def get(self,x):
         pass
     def h(self,x):
         pass
-    def H(self):
+    def H(self,x):
         pass
 
 class Encoder(Sensor):
-    def __init__(self):
-        pass
+    def __init__(self,r,l):
+        s = 1e-2 # Arbitrary, stddev .01m
+        super(Encoder,self).__init__(s)
+        self.r = r # Wheel radius
+        self.l = l # Wheel Distance
+    def get(self,u):
+        return self.add_noise(self.h(u))
+    def h(self,u):
+        r,l = self.r, self.l
+        wl,wr = u
+        vl,vr = r*wl, r*wr
+        v = (vr+vl) / 2
+        w = 2 * (vr - v) / (l/2)
+        return colvec(v,w)
+    def H(self,x):
+        res = np.zeros((2,5))
+        res[0,3] = 1.
+        res[1,4] = 1.
+        return res
 
 def test_gps(x):
     # Test GPS
@@ -196,13 +212,25 @@ def test_compass(x):
 #    print 'x', x
 #    print 'x->z', z
 
+def test_enc(x,u):
+    r = .1 # m
+    l = .25 # m
+    enc = Encoder(r,l)
+    z = enc.get(u)
+    print 'x', x
+    print 'x->z', z
+    print 'H', enc.H(x)
+
+
 if __name__ == "__main__":
     x = np.random.rand(5,1) # x,y,t,v,w
+
     #test_gps(x)
     #test_gyro(x)
     #test_mag(x)
     #test_compass(x)
     #test_accel(x)
-
+    u = (-1,1.5) # cmd, wl-wr, rad/s
+    test_enc(x,u)
     # Test 
     pass

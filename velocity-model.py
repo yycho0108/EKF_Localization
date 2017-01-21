@@ -3,8 +3,19 @@
 
 import numpy as np
 from abc import ABCMeta, abstractmethod
-from sensor import GPS, IMU, Encoder
+from sensor import GPS, Gyroscope, Magnetometer, Compass, Accelerometer, IMU, Encoder 
 from utility import *
+
+W_R = 0.2 # Wheel Rad
+W_D = 0.3 # Wheel Dist
+
+gps = GPS()
+gyroscope = Gyroscope()
+magnetometer = Magnetometer()
+compass = Compass()
+accelerometer = Accelerometer()
+imu = IMU()
+encoder = Encoder(W_R,W_D)
 
 class PoseEKF(object):
     def __init__(self, n, m, x = None, pqr_init = (0.1, 1e-4, 0.1)):
@@ -65,42 +76,26 @@ class PoseEKF(object):
         F[2,4] = dt
         raise NotImplementedError()    
 
-    def h(self,x):
+    def h(self,x,u):
         # map x --> observations vector
-        # obs = [compass, accelerometer, gyroscope, gps, encoder]
-        return np.vstack((IMU.h(x), GPS.h(x), Encoder.h(x)))
+        # obs = [gps, gyro, magneto, compass, encoder]
+        # Accelerometer not being used
+        return np.vstack((gps.h(x), gyroscope.h(x), magnetometer.h(x), compass.h(x), encoder.h(u)))
 
     def H(self,x):
         # Jacobian of h
-        return np.vstack((IMU.H(x), GPS.H(x), Encoder.H(x)))
+        return np.vstack((gps.H(x), gyroscope.H(x), magnetometer.H(x), compass.H(x), encoder.H(x)))
         raise NotImplementedError()    
 
 class DiffDriveRobot(object):
     def __init__(self):
         # Diff Drive Robot
         # Parametrized by Wheel Distance, etc.
-
         self.state = colvec(0,0,0,0,0) # x,y,t,v,w
         self.e_state = colvec(0,0,0,0,0) # estimated state
-    def imu(self):
-        # IMU = 3DoF w/h Accelerometer, Magnetometer(Compass), Gyroscope
-        # IMU --> "Absolute Orientation" based on Magnetometer & Gyroscope
-        # lin vel, ang acc, orientation 
-        pass
-    def gps(self):
-        origin = 42.2932, -71.2637
-        # simulate gps
-        pass
-    def encoder(self):
-        # N_TICKS = 24
-        pass
     def sense(self):
         return self.imu() + self.gps() + self.encoder()
 
 
-
-
-
-
-
-
+if __name__ == "__main__":
+    ekf = PoseEKF(5,5)
