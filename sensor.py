@@ -156,6 +156,7 @@ class IMU(Sensor):
 
 class Encoder(Sensor):
     def __init__(self,r,l):
+        # TODO : add resolution constraint (# TICKS)
         s = 1e-2 # Arbitrary, stddev .01m
         super(Encoder,self).__init__(s)
         self.r = r # Wheel radius

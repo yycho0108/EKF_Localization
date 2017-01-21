@@ -9,6 +9,7 @@ from utility import *
 W_R = 0.2 # Wheel Rad
 W_D = 0.3 # Wheel Dist
 
+# instantiate virtual sensors
 gps = GPS()
 gyroscope = Gyroscope()
 magnetometer = Magnetometer()
@@ -19,6 +20,7 @@ encoder = Encoder(W_R,W_D)
 
 class PoseEKF(object):
     def __init__(self, n, m, x = None, pqr_init = (0.1, 1e-4, 0.1)):
+        # TODO : modify P initialization and (especially) R w.r.t sensor characteristics
 
         # Initialization values
         p,q,r = pqr_init 
@@ -40,7 +42,7 @@ class PoseEKF(object):
         # Alias names to save typing
         x,P,Q,R = self.x, self.P, self.Q, self.R
 
-        self.x = self.f(x,u) # dot(B,u), but not used here
+        self.x = self.f(x) # dot(B,u), but not used here
         self.P = dot(F,P,F.T) + Q #
         return self.x
 
@@ -66,26 +68,26 @@ class PoseEKF(object):
     
     def F(self,x):
         # Jacobian of f
-        F = np.eye(5)
+        _F = np.eye(5)
         th,v = x[2:4,:]
         s,c = sin(th), cos(th)
-        F[0,2] = -v*s*dt
-        F[0,3] = c*dt
-        F[1,2] = v*c*dt
-        F[1,3] = s*dt
-        F[2,4] = dt
-        raise NotImplementedError()    
+        _F[0,2] = -v*s*dt
+        _F[0,3] = c*dt
+        _F[1,2] = v*c*dt
+        _F[1,3] = s*dt
+        _F[2,4] = dt
+        return _F
 
     def h(self,x,u):
         # map x --> observations vector
-        # obs = [gps, gyro, magneto, compass, encoder]
-        # Accelerometer not being used
+        # u is only needed here because encoder needs to simulate input :P
+        # obs = [gps, gyro, magneto, compass, encoder] #TODO: magneto and compass are redundant; try removing one
+        # Accelerometer not being used #TODO: consider augmenting state definition
         return np.vstack((gps.h(x), gyroscope.h(x), magnetometer.h(x), compass.h(x), encoder.h(u)))
 
     def H(self,x):
         # Jacobian of h
         return np.vstack((gps.H(x), gyroscope.H(x), magnetometer.H(x), compass.H(x), encoder.H(x)))
-        raise NotImplementedError()    
 
 class DiffDriveRobot(object):
     def __init__(self):
