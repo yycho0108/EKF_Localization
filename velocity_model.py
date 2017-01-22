@@ -22,7 +22,7 @@ accelerometer = Accelerometer()
 imu = IMU()
 encoder = Encoder(W_R,W_D)
 
-dt = 1e-2 # .05 sec
+dt = 1e-2 # .01 sec
 
 # TODO : possibly 
 class PoseEKF(object):
@@ -45,7 +45,7 @@ class PoseEKF(object):
         gv_2 = gyroscope.s()**2
         mv = magnetometer.s()**2
         cv = compass.s()**2
-        ev = encoder.s()**2
+        ev = 1e+2 #encoder.s()**2
 
         self.R = np.diag([gv,gv,gv_2,mv,mv,cv,ev,ev])
         # Measurement Noise Model -- depends on sensor precision
@@ -182,7 +182,7 @@ def u2v(x,u):
     V_l,V_r = u[:,0]
     T_l,T_r = v2t(V_l,w_l), v2t(V_r,w_r)
     a_l,a_r = t2a(T_l), t2a(T_r)
-    print a_l, a_r
+    #print a_l, a_r
     w_l += a_l * dt
     w_r += a_r * dt
     v_l = w_l * W_R
