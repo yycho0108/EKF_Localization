@@ -17,3 +17,8 @@ def R(t):
     c = cos(t)
     s = sin(t)
     return np.array([[c,-s],[s,c]])
+
+def norm_angle(theta):
+    return np.arctan2(np.sin(theta),np.cos(theta))
+
+

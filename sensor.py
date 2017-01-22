@@ -9,9 +9,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def norm_angle(theta):
-    return np.arctan2(np.sin(theta),np.cos(theta))
-
 class Sensor(object):
     """
     Base Class for Producing Fake Sensor
@@ -31,6 +28,8 @@ class Sensor(object):
         pass
     def add_noise(self,x):
         return x + np.random.normal(loc=0,scale=self.sigma,size=x.shape)
+    def s(self):
+        return self.sigma
 
 # Absolute Position, Lat/Long
 class GPS(Sensor):
@@ -165,7 +164,7 @@ class Encoder(Sensor):
         return self.add_noise(self.h(u))
     def h(self,u):
         r,l = self.r, self.l
-        wl,wr = u
+        wl,wr = u[:,0]
         vl,vr = r*wl, r*wr
         v = (vr+vl) / 2
         w = 2 * (vr - v) / (l/2)

@@ -5,6 +5,8 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 from sensor import GPS, Gyroscope, Magnetometer, Compass, Accelerometer, IMU, Encoder 
 from utility import *
+from matplotlib import pyplot as plt
+from comet import CometAnimation
 
 W_R = 0.2 # Wheel Rad
 W_D = 0.3 # Wheel Dist
@@ -18,43 +20,58 @@ accelerometer = Accelerometer()
 imu = IMU()
 encoder = Encoder(W_R,W_D)
 
+dt = 1e-2 # .01 sec
+
+# TODO : possibly 
 class PoseEKF(object):
-    def __init__(self, n, m, x = None, pqr_init = (0.1, 1e-4, 0.1)):
+    def __init__(self, n, m):
         # TODO : modify P initialization and (especially) R w.r.t sensor characteristics
 
+        p = 1e-2
+        q = 1e-1
+
         # Initialization values
-        p,q,r = pqr_init 
+        self.x = np.zeros((n,1))
 
-        if x == None:
-            self.x = np.zeros((n,1))
-        if P == None:
-            # p initialzed to covariance of 9999 ... arbitrary :/
-            self.P = np.eye(n) * p
+        self.P = np.eye(n) * p
+        # (Initial) Covariance
 
-        self.Q = np.eye(n) * q # Process Noise Model -- depends on robot locomotion accuracy
-        self.R = np.eye(m) * r # Measurement Noise Model -- depends on sensor precision
- 
-    def predict(self,u):
+        self.Q = np.eye(n) * q
+        # Process Noise Model -- depends on robot locomotion accuracy
+
+        self.R = np.diag([gps.s(),gps.s(),gyroscope.s(),magnetometer.s(),magnetometer.s(),compass.s(),encoder.s(),encoder.s()])
+        # Measurement Noise Model -- depends on sensor precision
+
+        # gps x2
+        # gyro x1
+        # magneto x2
+        # compass x1
+        # encoder x2
+
+    def predict(self,x):
         """
         predict(x) : x = state vector
         """
+        self.x = x
 
         # Alias names to save typing
         x,P,Q,R = self.x, self.P, self.Q, self.R
 
         self.x = self.f(x) # dot(B,u), but not used here
-        self.P = dot(F,P,F.T) + Q #
+        F = self.F(x)
+        self.P = dot(F,P,F.T) + Q
         return self.x
 
-    def update(self, z):
+    def update(self, z, u):
         """
         update(z) : z = observations
         """
 
         # Alias names to save typing
         x,P,Q,R = self.x, self.P, self.Q, self.R
+        H = self.H(x)
 
-        y = z - self.h(x) # Y = Measurement "Error" or Innovation
+        y = z - self.h(x,u) # Y = Measurement "Error" or Innovation
         S = dot(H,P,H.T) + R # S = Innovation Covariance
         K = dot(P,H.T,np.linalg.pinv(S)) # K = "Optimal" Kalman Gain; pinv for numerical stability
 
@@ -63,7 +80,7 @@ class PoseEKF(object):
         return self.x
 
     def f(self,x):
-        th,v,w = x[2:5,:]
+        th,v,w = x[2:5,0]
         return x + colvec(v*cos(th)*dt,v*sin(th)*dt,w*dt,0,0)
     
     def F(self,x):
@@ -89,15 +106,87 @@ class PoseEKF(object):
         # Jacobian of h
         return np.vstack((gps.H(x), gyroscope.H(x), magnetometer.H(x), compass.H(x), encoder.H(x)))
 
-class DiffDriveRobot(object):
-    def __init__(self):
-        # Diff Drive Robot
-        # Parametrized by Wheel Distance, etc.
-        self.state = colvec(0,0,0,0,0) # x,y,t,v,w
-        self.e_state = colvec(0,0,0,0,0) # estimated state
-    def sense(self):
-        return self.imu() + self.gps() + self.encoder()
+#class DiffDriveRobot(object):
+#    def __init__(self):
+#        # Diff Drive Robot
+#        # Parametrized by Wheel Distance, etc.
+#        self.state = colvec(0,0,0,0,0) # x,y,t,v,w
+#        self.e_state = colvec(0,0,0,0,0) # estimated state
+#    def sense(self):
+#        return self.imu() + self.gps() + self.encoder()
 
+def move(x,u):
+    # diff drive, prediction based on its wheel encoder
+    x,y,t,v,w = x[:,0]
+
+    # U as Angular Acceleration for Both Motors
+
+    #rml = w*W_D
+    #rpl = v*2.0
+
+    #v_r = (rml + rpl) / 2.0
+    #v_l = (rpl - rml) / 2.0
+
+    #a_l,a_r = u[:,0]
+
+    #v_l += a_l * dt
+    #v_r += a_r * dt
+
+    # U as Angular Velocities for Both Motors
+    w_l,w_r = u[:,0]
+    v_l,v_r = w_l*W_R,w_r*W_R
+
+    R = (W_D/ 2.0) * (v_l+v_r)/(v_r-v_l)
+    w = (v_r-v_l) / (W_D)
+    v = (v_r+v_l) / 2.0
+
+    iccx, iccy = x-R*np.sin(t),y+R*np.cos(t)
+    wdt = w*dt
+    M = np.asarray([
+        [np.cos(wdt),-sin(wdt),0],
+        [np.sin(wdt),cos(wdt),0],
+        [0,0,1]
+        ])
+
+    x,y,t = (dot(M,colvec(x-iccx, y-iccy,t)) + colvec(iccx,iccy,wdt))[:,0]
+    t = norm_angle(t)
+    # todo : add process noise
+    return colvec(x,y,t,v,w)
+
+def sense(x,u):
+    return np.vstack((gps.get(x),gyroscope.get(x),magnetometer.get(x),compass.get(x),encoder.get(u)))
 
 if __name__ == "__main__":
-    ekf = PoseEKF(5,5)
+    ekf = PoseEKF(5,8)
+    x = np.random.rand(5,1) # real state
+    #x = np.zeros((5,1))
+    e_x = x.copy() # estimated state
+
+    real = []
+    est = []
+
+    for i in range(1000):
+        if i % 100 == 0:
+            u = np.random.normal(size=(2,1)) # cmd
+        x = move(x,u)
+
+        real.append(x[:,0])
+        est.append(e_x[:,0])
+
+        for j in range(10):
+            z = sense(x,u) # sensor values after movement
+            #print 'z', z
+            ekf.update(z,u)
+        e_x = ekf.predict(e_x)
+        print 'x', x
+        print 'e_x', ekf.x
+
+    real = np.array(real)
+    est = np.array(est)
+
+    fig = plt.figure()
+    ax = plt.subplot(1,1,1)
+
+    ani = CometAnimation(real,est)
+    plt.show()
+    ani.save('demo.mp4')
