@@ -170,3 +170,4 @@ tags
 # End of https://www.gitignore.io/api/qt,python,linux,vim,git
 
 demo/
+*.mp4

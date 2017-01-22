@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Sensors : GPS, IMU, Wheel Encoder
 # GPS --> Absolute Position, mapped to lat/long
 
@@ -20,7 +22,7 @@ accelerometer = Accelerometer()
 imu = IMU()
 encoder = Encoder(W_R,W_D)
 
-dt = 1e-2 # .01 sec
+dt = 5e-2 # .05 sec
 
 # TODO : possibly 
 class PoseEKF(object):
@@ -81,7 +83,9 @@ class PoseEKF(object):
 
     def f(self,x):
         th,v,w = x[2:5,0]
-        return x + colvec(v*cos(th)*dt,v*sin(th)*dt,w*dt,0,0)
+        res = x + colvec(v*cos(th)*dt,v*sin(th)*dt,w*dt,0,0)
+        res[2,0] = norm_angle(res[2,0])
+        return res
     
     def F(self,x):
         # Jacobian of f
@@ -165,6 +169,10 @@ if __name__ == "__main__":
     real = []
     est = []
 
+    r_vel = []
+    e_vel = []
+    # TODO : Plot Velocities
+
     for i in range(1000):
         if i % 100 == 0:
             u = np.random.normal(size=(2,1)) # cmd
@@ -184,9 +192,9 @@ if __name__ == "__main__":
     real = np.array(real)
     est = np.array(est)
 
-    fig = plt.figure()
-    ax = plt.subplot(1,1,1)
-
     ani = CometAnimation(real,est)
     plt.show()
-    ani.save('demo.mp4')
+
+    save = str(raw_input("SAVE?(y/n)\n")).lower()
+    if(save == 'y'):
+        ani.save('demo.mp4')
