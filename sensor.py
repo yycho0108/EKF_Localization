@@ -135,6 +135,7 @@ class Accelerometer(Sensor):
         s = s_g * 9.8 # m/s^2
         super(Accelerometer,self).__init__(s)
     def get(self,x):
+        # cheat a bit and return velocity reading?
         return self.add_noise(self.h(x))
     def h(self,x):
         pass
@@ -156,7 +157,7 @@ class IMU(Sensor):
 class Encoder(Sensor):
     def __init__(self,r,l):
         # TODO : add resolution constraint (# TICKS)
-        s = 1e-2 # Arbitrary, stddev .01m
+        s = 1. # Arbitrary, stddev .01m
         super(Encoder,self).__init__(s)
         self.r = r # Wheel radius
         self.l = l # Wheel Distance

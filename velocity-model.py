@@ -22,7 +22,7 @@ accelerometer = Accelerometer()
 imu = IMU()
 encoder = Encoder(W_R,W_D)
 
-dt = 5e-2 # .05 sec
+dt = 1e-2 # .05 sec
 
 # TODO : possibly 
 class PoseEKF(object):
@@ -41,7 +41,13 @@ class PoseEKF(object):
         self.Q = np.eye(n) * q
         # Process Noise Model -- depends on robot locomotion accuracy
 
-        self.R = np.diag([gps.s(),gps.s(),gyroscope.s(),magnetometer.s(),magnetometer.s(),compass.s(),encoder.s(),encoder.s()])
+        gv = gps.s()**2
+        gv_2 = gyroscope.s()**2
+        mv = magnetometer.s()**2
+        cv = compass.s()**2
+        ev = encoder.s()**2
+
+        self.R = np.diag([gv,gv,gv_2,mv,mv,cv,ev,ev])
         # Measurement Noise Model -- depends on sensor precision
 
         # gps x2
@@ -119,6 +125,9 @@ class PoseEKF(object):
 #    def sense(self):
 #        return self.imu() + self.gps() + self.encoder()
 
+def add_noise(x,s):
+    return x + np.random.normal(loc=0,scale=s,size=x.shape)
+
 def move(x,u):
     # diff drive, prediction based on its wheel encoder
     x,y,t,v,w = x[:,0]
@@ -154,43 +163,75 @@ def move(x,u):
 
     x,y,t = (dot(M,colvec(x-iccx, y-iccy,t)) + colvec(iccx,iccy,wdt))[:,0]
     t = norm_angle(t)
-    # todo : add process noise
-    return colvec(x,y,t,v,w)
+
+    G = colvec(3e-1,3e-1,1e-1,2e-1,2e-1)
+    return colvec(x,y,t,v,w) + np.random.normal(size=(5,1)) * G
 
 def sense(x,u):
+
+    # obtain velocity from u when u is acceleration control
+    #v,w = x[3:,0]
+    #a_l,a_r = u[:,0]
+    #rml = w*W_D
+    #rpl = v*2.0
+
+    #v_r = (rml + rpl) / 2.0
+    #v_l = (rpl - rml) / 2.0
+
+    #a_l,a_r = u[:,0]
+
+    #v_l += a_l * dt
+    #v_r += a_r * dt
+
+    #u = colvec(v_l, v_r)
+    #print u 
+
     return np.vstack((gps.get(x),gyroscope.get(x),magnetometer.get(x),compass.get(x),encoder.get(u)))
 
 if __name__ == "__main__":
     ekf = PoseEKF(5,8)
     x = np.random.rand(5,1) # real state
     #x = np.zeros((5,1))
-    e_x = x.copy() # estimated state
+    #e_x = x.copy() # estimated state -- same as real
+    e_x = np.random.normal(size=(5,1), scale=10) # -- random!
 
     real = []
     est = []
 
     r_vel = []
     e_vel = []
+    err = []
     # TODO : Plot Velocities
 
-    for i in range(1000):
-        if i % 100 == 0:
-            u = np.random.normal(size=(2,1)) # cmd
+    u = np.random.normal(size=(2,1), scale=10) # cmd
+    b = np.random.normal(size=(2,1), scale=5)
+    a = np.zeros((2,1))
+
+    for i in range(500):
+        u += a
+        if i % 10 == 0:
+            a = b + np.random.normal(size=(2,1), scale=10) # cmd
+
         x = move(x,u)
 
-        real.append(x[:,0])
-        est.append(e_x[:,0])
+        real.append(x[:2,0])
+        est.append(e_x[:2,0])
+        err.append(np.linalg.norm(x[:2] - e_x[:2]))
 
         for j in range(10):
             z = sense(x,u) # sensor values after movement
             #print 'z', z
             ekf.update(z,u)
         e_x = ekf.predict(e_x)
+
         print 'x', x
         print 'e_x', ekf.x
 
     real = np.array(real)
     est = np.array(est)
+
+    plt.plot(err)
+    plt.show()
 
     ani = CometAnimation(real,est)
     plt.show()

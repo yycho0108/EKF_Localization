@@ -10,7 +10,7 @@ def plot_line(p1,p2,label):
     plt.plot([p1[0], p2[0]], [p1[1], p2[1]], label=label)
 
 class CometAnimation(TimedAnimation):
-    def __init__(self, real_pos, est_pos, real_vel, est_vel, fig=None, ax=None):
+    def __init__(self, real_pos, est_pos, fig=None, ax=None):
 
         if fig == None:
             fig = plt.figure()
@@ -41,13 +41,13 @@ class CometAnimation(TimedAnimation):
         self.real_pos = real_pos
         self.est_pos = est_pos
 
-        self.real_vel = real_vel
-        self.est_vel = est_vel
+        #self.real_vel = real_vel
+        #self.est_vel = est_vel
 
         self.comet1, = plt.plot([],[],label='real')
         self.comet2, = plt.plot([],[],label='estimated')
-        self.vel1, = plt.plot([],[],label='r_vel')
-        self.vel2, = plt.plot([],[],label='e_vel')
+        #self.vel1, = plt.plot([],[],label='r_vel')
+        #self.vel2, = plt.plot([],[],label='e_vel')
 
         self.centers, = plt.plot([],[],'or',label='centers')
         self.origin, = plt.plot([0],[0],"*b")
