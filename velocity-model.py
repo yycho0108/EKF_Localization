@@ -128,26 +128,79 @@ class PoseEKF(object):
 def add_noise(x,s):
     return x + np.random.normal(loc=0,scale=s,size=x.shape)
 
-def move(x,u):
-    # diff drive, prediction based on its wheel encoder
+def rpm2rps(r):
+    return r * (2 * pi / 60)
+
+def v2t(V,w):
+    # voltage to motor torque
+    # T(V,w)
+    k = 1. / rpm2rps(1.315 * (500/12))
+    R = 2.45
+    return V*k/R - k*k*w/R
+
+def t2a(T):
+    # M = Mass of Wheel
+    M = .1 # kg
+    I = (1./2)*M*W_R**2
+    return T/I
+
+def u2a(x,u):
+    # U as voltage for Both motors
+    # convert to v_l, v_r
     x,y,t,v,w = x[:,0]
 
-    # U as Angular Acceleration for Both Motors
+    rml = w*W_D
+    rpl = v*2.0
+    
+    v_r = (rml + rpl) / 2.0
+    v_l = (rpl - rml) / 2.0
 
-    #rml = w*W_D
-    #rpl = v*2.0
+    w_l = v_l / W_R
+    w_r = v_r / W_R
+    
+    V_l,V_r = u[:,0]
+    T_l,T_r = v2t(V_l,w_l), v2t(V_r,w_r)
+    a_l,a_r = t2a(T_l), t2a(T_r)
 
-    #v_r = (rml + rpl) / 2.0
-    #v_l = (rpl - rml) / 2.0
+    a = (a_l + a_r) / 2.0
+    return a
 
-    #a_l,a_r = u[:,0]
+def u2v(x,u):
+    # U as voltage for Both motors
+    # convert to v_l, v_r
+    x,y,t,v,w = x[:,0]
 
-    #v_l += a_l * dt
-    #v_r += a_r * dt
+    rml = w*W_D
+    rpl = v*2.0
+    
+    v_r = (rml + rpl) / 2.0
+    v_l = (rpl - rml) / 2.0
 
+    w_l = v_l / W_R
+    w_r = v_r / W_R
+    
+    V_l,V_r = u[:,0]
+    T_l,T_r = v2t(V_l,w_l), v2t(V_r,w_r)
+    a_l,a_r = t2a(T_l), t2a(T_r)
+    print a_l, a_r
+    w_l += a_l * dt
+    w_r += a_r * dt
+    v_l = w_l * W_R
+    v_r = w_r * W_R
+    return v_l, v_r
+
+def move(x,u):
+    # diff drive, prediction based on its wheel encoder
+
+    # ===
+    # U as Voltage for Both Motors
+    v_l,v_r = u2v(x,u)
+    # ====
     # U as Angular Velocities for Both Motors
-    w_l,w_r = u[:,0]
-    v_l,v_r = w_l*W_R,w_r*W_R
+    # w_l,w_r = u[:,0]
+    # v_l,v_r = w_l*W_R,w_r*W_R
+    # ====
+    x,y,t,v,w = x[:,0]
 
     R = (W_D/ 2.0) * (v_l+v_r)/(v_r-v_l)
     w = (v_r-v_l) / (W_D)
@@ -164,27 +217,16 @@ def move(x,u):
     x,y,t = (dot(M,colvec(x-iccx, y-iccy,t)) + colvec(iccx,iccy,wdt))[:,0]
     t = norm_angle(t)
 
-    G = colvec(3e-1,3e-1,1e-1,2e-1,2e-1)
-    return colvec(x,y,t,v,w) + np.random.normal(size=(5,1)) * G
+    G = colvec(2e-2,2e-2,1e-2,2e-2,2e-2)
+    N = np.random.normal(size=(5,1))*G
+    return colvec(x,y,t,v,w) + N
 
 def sense(x,u):
 
-    # obtain velocity from u when u is acceleration control
-    #v,w = x[3:,0]
-    #a_l,a_r = u[:,0]
-    #rml = w*W_D
-    #rpl = v*2.0
-
-    #v_r = (rml + rpl) / 2.0
-    #v_l = (rpl - rml) / 2.0
-
-    #a_l,a_r = u[:,0]
-
-    #v_l += a_l * dt
-    #v_r += a_r * dt
-
-    #u = colvec(v_l, v_r)
-    #print u 
+    # obtain v_l, v_r from x,u when u is voltage
+    v,w = x[3:,0]
+    v_l,v_r = u2v(x,u)
+    u = colvec(v_l, v_r)
 
     return np.vstack((gps.get(x),gyroscope.get(x),magnetometer.get(x),compass.get(x),encoder.get(u)))
 
@@ -192,8 +234,8 @@ if __name__ == "__main__":
     ekf = PoseEKF(5,8)
     x = np.random.rand(5,1) # real state
     #x = np.zeros((5,1))
-    #e_x = x.copy() # estimated state -- same as real
-    e_x = np.random.normal(size=(5,1), scale=10) # -- random!
+    e_x = x.copy() # estimated state -- same as real
+    #e_x = np.random.normal(size=(5,1), scale=10) # -- random!
 
     real = []
     est = []
@@ -207,21 +249,25 @@ if __name__ == "__main__":
     b = np.random.normal(size=(2,1), scale=5)
     a = np.zeros((2,1))
 
-    for i in range(500):
-        u += a
+    for i in range(1000):
         if i % 10 == 0:
-            a = b + np.random.normal(size=(2,1), scale=10) # cmd
+            #u = np.zeros((2,1)) 
+            u = np.random.normal(size=(2,1), scale=12)
+            #u = np.ones((2,1))
+
+            #a = b + np.random.normal(size=(2,1), scale=10) # cmd
 
         x = move(x,u)
 
         real.append(x[:2,0])
         est.append(e_x[:2,0])
-        err.append(np.linalg.norm(x[:2] - e_x[:2]))
+        #err.append(np.linalg.norm(x[:2] - e_x[:2])) # error measure based on displacement
+        err.append(abs(x[3,0] - e_x[3,0])) # error measure based on velocity
 
-        for j in range(10):
-            z = sense(x,u) # sensor values after movement
-            #print 'z', z
-            ekf.update(z,u)
+        z = sense(x,u) # sensor values after movement
+        #print 'z', z
+        ekf.update(z,u)
+
         e_x = ekf.predict(e_x)
 
         print 'x', x
