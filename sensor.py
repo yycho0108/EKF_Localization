@@ -158,7 +158,7 @@ class IMU(Sensor):
 class Encoder(Sensor):
     def __init__(self,r,l):
         # TODO : add resolution constraint (# TICKS)
-        s = 1e-1 # Arbitrary, stddev .01m
+        s = 1e+1 # Arbitrary, stddev .01m
         super(Encoder,self).__init__(s)
         self.r = r # Wheel radius
         self.l = l # Wheel Distance
@@ -170,11 +170,12 @@ class Encoder(Sensor):
         vl,vr = r*wl, r*wr
         v = (vr+vl) / 2
         w = 2 * (vr - v) / (l/2)
+        #print v,w
         return colvec(v,w)
     def H(self,x):
         res = np.zeros((2,5))
-        res[0,3] = 1.
-        res[1,4] = 1.
+        res[0,3] = 1. # v
+        res[1,4] = 1. # w
         return res
 
 def test_gps(x):

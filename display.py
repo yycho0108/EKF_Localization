@@ -3,7 +3,7 @@ import numpy as np
 from pygame.locals import *
 
 def m2p(m):
-    return m * 50 # 1m = 100px
+    return m * 100 # 1m = 100px
 CX,CY = 250,250
 r2d = np.rad2deg
 WHITE = (255,255,255)
@@ -56,16 +56,20 @@ class RobotObject(pygame.sprite.Sprite):
         screen.blit(r_img, rect)
 
 class Display(object):
-    def __init__(self):
+    def __init__(self, w,h):
         pygame.init()
-        self.w,self.h = 500,500
+        self.w,self.h = w,h
         self.screen = pygame.display.set_mode((self.w,self.h))
         pygame.display.set_caption('EKF Localization')
     def draw(self,objects):
         self.screen.fill(WHITE)
         for o in objects:
             o.draw(self.screen)
+
+        # control panel
         pygame.draw.ellipse(self.screen, GREEN, (self.w/2, self.h/2, self.w/2, self.h/2),2)
+        pygame.draw.ellipse(self.screen, GREEN, (self.w * 3/4 - 5, self.h * 3/4 - 5, 10, 10),2)
+
         pygame.display.flip()
     def update(self):
         pygame.display.update()

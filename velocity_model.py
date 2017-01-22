@@ -41,13 +41,13 @@ class PoseEKF(object):
         self.Q = np.eye(n) * q
         # Process Noise Model -- depends on robot locomotion accuracy
 
-        gv = gps.s()**2
-        gv_2 = gyroscope.s()**2
+        gpv = gps.s()**2
+        gyv = gyroscope.s()**2
         mv = magnetometer.s()**2
         cv = compass.s()**2
-        ev = 1e+2 #encoder.s()**2
+        ev = encoder.s()**2
 
-        self.R = np.diag([gv,gv,gv_2,mv,mv,cv,ev,ev])
+        self.R = np.diag([gpv,gpv,gyv,mv,mv,cv,ev,ev])
         # Measurement Noise Model -- depends on sensor precision
 
         # gps x2
@@ -115,15 +115,6 @@ class PoseEKF(object):
     def H(self,x):
         # Jacobian of h
         return np.vstack((gps.H(x), gyroscope.H(x), magnetometer.H(x), compass.H(x), encoder.H(x)))
-
-#class DiffDriveRobot(object):
-#    def __init__(self):
-#        # Diff Drive Robot
-#        # Parametrized by Wheel Distance, etc.
-#        self.state = colvec(0,0,0,0,0) # x,y,t,v,w
-#        self.e_state = colvec(0,0,0,0,0) # estimated state
-#    def sense(self):
-#        return self.imu() + self.gps() + self.encoder()
 
 def add_noise(x,s):
     return x + np.random.normal(loc=0,scale=s,size=x.shape)

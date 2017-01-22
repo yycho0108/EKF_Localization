@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import pygame
 from pygame.locals import *
 
@@ -5,6 +7,7 @@ from display import Display, RobotObject
 from velocity_model import PoseEKF, sense, move
 import numpy as np
 from utility import *
+W,H = 800,800
 
 def quit():
     for event in pygame.event.get():
@@ -14,13 +17,14 @@ def quit():
 
 def get_cmd():
     mx,my = pygame.mouse.get_pos()
-    cx,cy = 500*3/4, 500*3/4
+    cx,cy = W*3./4, H*3./4
     dx,dy = mx-cx,-(my-cy)
     speed = np.sqrt(dx**2 + dy**2)
-    if(speed < 125.):
+    S_MAX = W/4.
+    if(speed < S_MAX):
         # 125 == 12V
-        v = dy * (12. / 125) 
-        w = dx * (12. / 125)
+        v = dy * (12. / S_MAX) 
+        w = dx * (12. / S_MAX)
         v_l = v + w/2
         v_r = v - w/2
         return colvec(v_l, v_r)
@@ -35,7 +39,7 @@ def main():
     ekf = PoseEKF(5,8)
 
     # == DISPLAY ==
-    disp = Display()
+    disp = Display(W,H)
     r_r = RobotObject((255,128,128)) # real robot
     r_e = RobotObject((128,255,255)) # Estimated Robot
 
@@ -45,10 +49,11 @@ def main():
             break
         u = get_cmd()
 
+        x_e = ekf.predict(x_e)
+        print ekf.P[3,3]
         x_r = move(x_r, u)
         z = sense(x_r, u)
         ekf.update(z,u)
-        x_e = ekf.predict(x_e)
 
         r_r.update(x_r)
         r_e.update(x_e)
