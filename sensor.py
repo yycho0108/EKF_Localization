@@ -40,14 +40,17 @@ class GPS(Sensor):
         ER = 6.371e6 # Earth's Radius in M
         Rl = ER * np.abs(cos(d2r(lt))) # Radius at Latitude
 
-        s_m = 1.5 # stddev in Meters
-        # variance was around 1.4~3.0, sttdev = about 1.5
+        s_m = 1.5 # stddev, in Meters-ish
+        #s_m = 1.5e3
 
-        s = s_m * (180./pi) / ER # Variance in Degrees
-        super(GPS,self).__init__(s)
+        # variance was around 1.4~3.0, sttdev = about 1.5
+        s = s_m * (180./pi) / ER # stddev in Degrees(lat,lonog)
+        super(GPS,self).__init__(s) # added noise in terms of deg.
+
         self.lt,self.ln,self.ER,self.Rl = lt,ln,ER,Rl
 
     def get(self,x):
+        #return self.h(x)
         return self.add_noise(self.h(x))
 
     def h(self,x):
@@ -222,7 +225,7 @@ def test_enc(x,u):
     r = .1 # m
     l = .25 # m
     enc = Encoder(r,l)
-    z = enc.get(u)
+    z = enc.get(x,u)
     print 'x', x
     print 'x->z', z
     print 'H', enc.H(x)
@@ -230,13 +233,12 @@ def test_enc(x,u):
 
 if __name__ == "__main__":
     x = np.random.rand(5,1) # x,y,t,v,w
-
-    #test_gps(x)
+    test_gps(x)
     #test_gyro(x)
     #test_mag(x)
     #test_compass(x)
     #test_accel(x)
-    u = (-1,1.5) # cmd, wl-wr, rad/s
+    u = colvec(-1,1.5) # cmd, wl-wr, rad/s
     test_enc(x,u)
     # Test 
     pass

@@ -10,9 +10,6 @@ from utility import *
 from matplotlib import pyplot as plt
 from comet import CometAnimation
 
-W_R = 0.2 # Wheel Rad
-W_D = 0.3 # Wheel Dist
-
 # instantiate virtual sensors
 gps = GPS()
 gyroscope = Gyroscope()
@@ -21,8 +18,6 @@ compass = Compass()
 accelerometer = Accelerometer()
 imu = IMU()
 encoder = Encoder(W_R,W_D)
-
-dt = 1e-2 # .01 sec
 
 # TODO : possibly 
 class PoseEKF(object):
@@ -169,14 +164,14 @@ if __name__ == "__main__":
     err = []
     # TODO : Plot Velocities
 
-    u = np.random.normal(size=(2,1), scale=10) # cmd
+    u = np.random.normal(size=(2,1), scale=10) # cmd, in volts
     b = np.random.normal(size=(2,1), scale=5)
     a = np.zeros((2,1))
 
     for i in range(1000):
-        if i % 10 == 0:
+        if i % 100 == 0:
             #u = np.zeros((2,1)) 
-            u = np.random.normal(size=(2,1), scale=12)
+            u = np.random.normal(size=(2,1), scale=6) * colvec(2,1)
             #u = np.ones((2,1))
 
             #a = b + np.random.normal(size=(2,1), scale=10) # cmd
