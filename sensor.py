@@ -14,8 +14,9 @@ class Sensor(object):
     Base Class for Producing Fake Sensor
     """
     __metaclass__ = ABCMeta
-    def __init__(self,sigma):
+    def __init__(self,sigma,n):
         self.sigma = sigma
+        self.n = n
         pass
     @abstractmethod
     def get(self,x):
@@ -29,7 +30,7 @@ class Sensor(object):
     def add_noise(self,x):
         return x + np.random.normal(loc=0,scale=self.sigma,size=x.shape)
     def s(self):
-        return self.sigma
+        return [self.sigma for _ in range(self.n)]
 
 # Absolute Position, Lat/Long
 # TODO : simulate losing signal
@@ -44,7 +45,7 @@ class GPS(Sensor):
 
         # variance was around 1.4~3.0, sttdev = about 1.5
         s = s_m * (180./pi) / ER # stddev in Degrees(lat,lonog)
-        super(GPS,self).__init__(s) # added noise in terms of deg.
+        super(GPS,self).__init__(s,2) # added noise in terms of deg.
 
         self.lt,self.ln,self.ER,self.Rl = lt,ln,ER,Rl
 
@@ -82,7 +83,7 @@ class GPS(Sensor):
 class Gyroscope(Sensor):
     def __init__(self):
         s = d2r(.095)
-        super(Gyroscope,self).__init__(s) # .095 deg/s
+        super(Gyroscope,self).__init__(s,1) # .095 deg/s
     def get(self,x):
         return self.add_noise(self.h(x))
     def h(self,x):
@@ -100,7 +101,7 @@ class Magnetometer(Sensor):
         s = s_g / .52
         # assuming 0.52G (Total Field Strength) corresponds to "1"
         # Magnetic Declination ~= -14.61
-        super(Magnetometer,self).__init__(s)
+        super(Magnetometer,self).__init__(s,2)
     def get(self,x):
         # ignore "z" component, only return x,y w.r.t. true north
         return self.add_noise(self.h(x))
@@ -120,7 +121,7 @@ class Magnetometer(Sensor):
 class Compass(Sensor):
     def __init__(self):
         s = 1.1e-3 / .52
-        super(Compass,self).__init__(s)
+        super(Compass,self).__init__(s,1)
     def get(self,x):
         #x,y,t,v,w
         return self.add_noise(self.h(x))
@@ -137,7 +138,7 @@ class Accelerometer(Sensor):
     def __init__(self):
         s_g = 2.8e-3
         s = s_g * 9.8 # m/s^2
-        super(Accelerometer,self).__init__(s)
+        super(Accelerometer,self).__init__(s,1)
     def get(self,x,a):
         # cheat a bit and return velocity reading?
         return self.add_noise(self.h(x))
@@ -151,7 +152,7 @@ class Accelerometer(Sensor):
 class IMU(Sensor):
     # Compass + Gyro + Accelerometer
     def __init__(self):
-        super(IMU,self).__init__(0.0) # Obviously wrong
+        super(IMU,self).__init__(0.0,0) # Obviously wrong
         pass
     def get(self,x):
         pass
@@ -164,10 +165,13 @@ class Encoder(Sensor):
     def __init__(self,r,l):
         # TODO : add resolution constraint (# TICKS)
         s = 1e-1 # Arbitrary, stddev .1m
-        super(Encoder,self).__init__(s)
+        super(Encoder,self).__init__(s,2)
         self.r = r # Wheel radius
         self.l = l # Wheel Distance
-    def get(self,x,u):
+    def set_u(self,u):
+        self.u = u
+    def get(self,x):
+        u = self.u
         # real!
         r,l = self.r, self.l
         v_l,v_r = u2v(x,u)
@@ -182,6 +186,33 @@ class Encoder(Sensor):
         res = np.zeros((2,5))
         res[0,3] = 1. # v
         res[1,4] = 1. # w
+        return res
+
+class Beacon(Sensor):
+    def __init__(self,x,y):
+        self.x = x
+        self.y = y
+        s = 1e-1 # 1 m deviation
+        super(Beacon,self).__init__(s,1)
+    def get(self,x):
+        return self.add_noise(self.h(x))
+    def h(self,x):
+        x,y = x[:2,0]
+        dx = x - self.x
+        dy = y - self.y
+        d = np.sqrt(dx**2+dy**2)
+        return colvec(d)
+    def H(self,x):
+        d = self.h(x)[0,0]
+        ref = colvec(self.x, self.y)
+
+        res = np.zeros((1,5))
+        if d == 0:
+            return res
+        tmp = (x[:2,:] - ref) / d
+        dx,dy = tmp[:,0]
+        res[0,0] = dx
+        res[0,1] = dy
         return res
 
 def test_gps(x):
@@ -230,6 +261,25 @@ def test_enc(x,u):
     print 'x->z', z
     print 'H', enc.H(x)
 
+# instantiate virtual sensors
+gps = GPS()
+gyroscope = Gyroscope()
+magnetometer = Magnetometer()
+compass = Compass()
+accelerometer = Accelerometer()
+imu = IMU()
+encoder = Encoder(W_R,W_D)
+beacon_1 = Beacon(0,0) # beacon at origin
+beacon_2 = Beacon(5,5) # beacon at origin
+beacon_3 = Beacon(0,5) # beacon at origin
+beacon_4 = Beacon(5,0) # beacon at origin
+
+sensors = [gyroscope,magnetometer,compass,encoder,gps]#,beacon_1,beacon_2]
+#sensors = [gyroscope,magnetometer,compass,encoder,beacon_1,beacon_2,beacon_3,beacon_4]
+
+def sense(x,u):
+    encoder.set_u(u) # indicate u = voltage cmds
+    return np.vstack([s.get(x) for s in sensors])
 
 if __name__ == "__main__":
     x = np.random.rand(5,1) # x,y,t,v,w

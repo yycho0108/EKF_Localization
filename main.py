@@ -4,10 +4,10 @@ import pygame
 from pygame.locals import *
 
 from display import Display, RobotObject
-from velocity_model import PoseEKF, sense, move
+from velocity_model import PoseEKF, sensors, sense, move
 import numpy as np
 from utility import *
-W,H = 800,800
+W,H = 1000,1000
 
 def quit():
     for event in pygame.event.get():
@@ -37,7 +37,7 @@ def main():
     x_r = np.random.rand(5,1) # real state
     x_e = np.random.rand(5,1) # real state
     #x_e = x_r.copy() # estimated state
-    ekf = PoseEKF(5,8)
+    ekf = PoseEKF(5,sensors)
 
     # == DISPLAY ==
     disp = Display(W,H)

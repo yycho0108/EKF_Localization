@@ -5,23 +5,16 @@
 
 import numpy as np
 from abc import ABCMeta, abstractmethod
-from sensor import GPS, Gyroscope, Magnetometer, Compass, Accelerometer, IMU, Encoder 
+from sensor import sensors, sense 
 from utility import *
 from matplotlib import pyplot as plt
 from comet import CometAnimation
 
-# instantiate virtual sensors
-gps = GPS()
-gyroscope = Gyroscope()
-magnetometer = Magnetometer()
-compass = Compass()
-accelerometer = Accelerometer()
-imu = IMU()
-encoder = Encoder(W_R,W_D)
-
 # TODO : possibly 
 class PoseEKF(object):
-    def __init__(self, n, m):
+    def __init__(self, n, sensors):
+        self.sensors = sensors
+        m = len(self.sensors)
         # TODO : modify P initialization and (especially) R w.r.t sensor characteristics
 
         p = 1e+3 # start out with large uncertainty
@@ -35,14 +28,21 @@ class PoseEKF(object):
 
         self.Q = np.eye(n) * q
         # Process Noise Model -- depends on robot locomotion accuracy
+        vs = []
+        for s in sensors:
+            vs += s.s()
+        vs = [s*s for s in vs]
+        self.R = np.diag(vs)
 
-        gpv = gps.s()**2
-        gyv = gyroscope.s()**2
-        mv = magnetometer.s()**2
-        cv = compass.s()**2
-        ev = encoder.s()**2
+        # gpv = gps.s()**2
+        # gyv = gyroscope.s()**2
+        # mv = magnetometer.s()**2
+        # cv = compass.s()**2
+        # ev = encoder.s()**2
+        # bv = beacon.s()**2
 
-        self.R = np.diag([gpv,gpv,gyv,mv,mv,cv,ev,ev])
+        # self.R = np.diag([gpv,gpv,gyv,mv,mv,cv,ev,ev,bv])
+
         # Measurement Noise Model -- depends on sensor precision
 
         # gps x2
@@ -50,6 +50,7 @@ class PoseEKF(object):
         # magneto x2
         # compass x1
         # encoder x2
+        # beacon x1
 
     def predict(self,x):
         """
@@ -105,14 +106,14 @@ class PoseEKF(object):
         # u is only needed here because encoder needs to simulate input :P
         # obs = [gps, gyro, magneto, compass, encoder] #TODO: magneto and compass are redundant; try removing one
         # Accelerometer not being used #TODO: consider augmenting state definition
-        return np.vstack((gps.h(x), gyroscope.h(x), magnetometer.h(x), compass.h(x), encoder.h(x)))
+        hs = [s.h(x) for s in self.sensors]
+        return np.vstack(hs)
 
     def H(self,x):
         # Jacobian of h
-        return np.vstack((gps.H(x), gyroscope.H(x), magnetometer.H(x), compass.H(x), encoder.H(x)))
+        Hs = [s.H(x) for s in self.sensors]
+        return np.vstack(Hs)
 
-def add_noise(x,s):
-    return x + np.random.normal(loc=0,scale=s,size=x.shape)
 def move(x,u):
     # diff drive, prediction based on its wheel encoder
 
@@ -145,11 +146,8 @@ def move(x,u):
     N = np.random.normal(size=(5,1))*G
     return colvec(x,y,t,v,w) + N
 
-def sense(x,u):
-    return np.vstack((gps.get(x),gyroscope.get(x),magnetometer.get(x),compass.get(x),encoder.get(x,u)))
-
 if __name__ == "__main__":
-    ekf = PoseEKF(5,8)
+    ekf = PoseEKF(5,sensors)
     x = np.random.rand(5,1) # real state
     #x = np.zeros((5,1))
     e_x = x.copy() # estimated state -- same as real

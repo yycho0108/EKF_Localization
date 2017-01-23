@@ -7,6 +7,7 @@ def m2p(m):
 CX,CY = 250,250
 r2d = np.rad2deg
 WHITE = (255,255,255)
+BLACK = (0,0,0)
 GREEN = (0,255,0)
 
 class RobotObject(pygame.sprite.Sprite):
@@ -17,6 +18,7 @@ class RobotObject(pygame.sprite.Sprite):
 
         self.img = pygame.Surface((l,l))
         self.color = color
+        self.t_col = (color[0]/2, color[1]/2, color[2]/2)
 
         top = (l-w)/2
         bot = (l+w)/2
@@ -51,8 +53,8 @@ class RobotObject(pygame.sprite.Sprite):
         rect = r_img.get_rect()
         rect.center = (x,y)
 
-        #if len(self.trajectory) > 1:
-        #    pygame.draw.lines(screen, self.color, False,self.trajectory)
+        if len(self.trajectory) > 1:
+            pygame.draw.lines(screen, self.t_col, False,self.trajectory)
         screen.blit(r_img, rect)
 
 class Display(object):
