@@ -41,7 +41,6 @@ class GPS(Sensor):
         Rl = ER * np.abs(cos(d2r(lt))) # Radius at Latitude
 
         s_m = 1.5 # stddev, in Meters-ish
-        #s_m = 1.5e3
 
         # variance was around 1.4~3.0, sttdev = about 1.5
         s = s_m * (180./pi) / ER # stddev in Degrees(lat,lonog)
@@ -70,6 +69,7 @@ class GPS(Sensor):
         dy = (dp * pi / 180) * ER
         dx = (dt * pi / 180) * Rl
         return colvec(dx,dy)
+
     def H(self,x):
         # Jacobian Matrix H
         # effectively d(h(x))/d(x)

@@ -35,7 +35,8 @@ def get_cmd():
 def main():
     # == STATE ==
     x_r = np.random.rand(5,1) # real state
-    x_e = x_r.copy() # estimated state
+    x_e = np.random.rand(5,1) # real state
+    #x_e = x_r.copy() # estimated state
     ekf = PoseEKF(5,8)
 
     # == DISPLAY ==

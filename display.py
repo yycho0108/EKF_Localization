@@ -43,8 +43,8 @@ class RobotObject(pygame.sprite.Sprite):
         x,y,v = CX + m2p(x), CY - m2p(y), m2p(v)
         r_img = pygame.transform.rotate(self.img, r2d(t))
 
-        vx = v * np.cos(t)
-        vy = - v * np.sin(t)
+        vx = v * np.cos(t) * .25 #.25 = arbitrary scale factor for better visualization
+        vy = - v * np.sin(t) * .25 
 
         pygame.draw.line(screen, self.color,(x,y),(x+vx,y+vy))
 

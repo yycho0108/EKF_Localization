@@ -24,7 +24,7 @@ class PoseEKF(object):
     def __init__(self, n, m):
         # TODO : modify P initialization and (especially) R w.r.t sensor characteristics
 
-        p = 1e-2
+        p = 1e+3 # start out with large uncertainty
         q = 1e-1
 
         # Initialization values
@@ -75,7 +75,6 @@ class PoseEKF(object):
         H = self.H(x)
         # Problem : Encoder Error is small because h is based on u
         y = z - self.h(x) # Y = Measurement "Error" or Innovation
-        print 'y(innovation)', y
         S = dot(H,P,H.T) + R # S = Innovation Covariance
         K = dot(P,H.T,np.linalg.inv(S)) # K = "Optimal" Kalman Gain; pinv for numerical stability
         dx = dot(K,y)
