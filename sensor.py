@@ -135,11 +135,13 @@ class Accelerometer(Sensor):
         s_g = 2.8e-3
         s = s_g * 9.8 # m/s^2
         super(Accelerometer,self).__init__(s)
-    def get(self,x):
+    def get(self,x,a):
         # cheat a bit and return velocity reading?
         return self.add_noise(self.h(x))
-    def h(self,x):
-        pass
+    def h(self,x,a):
+        p_x,p_y,t,v,w = x[:,0]
+        dv = a * dt
+        return colvec(v+dv) # cheat and return velocity ... um
     def H(self,x):
         pass
 
@@ -158,20 +160,21 @@ class IMU(Sensor):
 class Encoder(Sensor):
     def __init__(self,r,l):
         # TODO : add resolution constraint (# TICKS)
-        s = 1e+1 # Arbitrary, stddev .01m
+        s = 1e-1 # Arbitrary, stddev .1m
         super(Encoder,self).__init__(s)
         self.r = r # Wheel radius
         self.l = l # Wheel Distance
-    def get(self,u):
-        return self.add_noise(self.h(u))
-    def h(self,u):
+    def get(self,x,u):
+        # real!
         r,l = self.r, self.l
-        wl,wr = u[:,0]
-        vl,vr = r*wl, r*wr
-        v = (vr+vl) / 2
-        w = 2 * (vr - v) / (l/2)
-        #print v,w
-        return colvec(v,w)
+        v_l,v_r = u2v(x,u)
+        v = (v_r+v_l) / 2
+        w = 2 * (v_r - v) / (l/2)
+        res = colvec(v,w)
+        return self.add_noise(res)
+    def h(self,x):
+        # v,w based on x
+        return x[3:,:] # v,w
     def H(self,x):
         res = np.zeros((2,5))
         res[0,3] = 1. # v

@@ -50,11 +50,13 @@ def main():
         u = get_cmd()
 
         x_e = ekf.predict(x_e)
-        print ekf.P[3,3]
+        # print ekf.P[3,3]
+        # print 'e,r', x_e[3], x_r[3],
         x_r = move(x_r, u)
-        z = sense(x_r, u)
+        z = sense(x_r, u) # observe based on REAL states
         ekf.update(z,u)
 
+        # display-related
         r_r.update(x_r)
         r_e.update(x_e)
         disp.draw([r_e, r_r])

@@ -78,12 +78,13 @@ class PoseEKF(object):
         # Alias names to save typing
         x,P,Q,R = self.x, self.P, self.Q, self.R
         H = self.H(x)
-
-        y = z - self.h(x,u) # Y = Measurement "Error" or Innovation
+        # Problem : Encoder Error is small because h is based on u
+        y = z - self.h(x) # Y = Measurement "Error" or Innovation
+        print 'y(innovation)', y
         S = dot(H,P,H.T) + R # S = Innovation Covariance
-        K = dot(P,H.T,np.linalg.pinv(S)) # K = "Optimal" Kalman Gain; pinv for numerical stability
-
-        self.x += dot(K,y) # Now update x
+        K = dot(P,H.T,np.linalg.inv(S)) # K = "Optimal" Kalman Gain; pinv for numerical stability
+        dx = dot(K,y)
+        self.x += dx # Now update x
         self.P -= dot(K,H,P) # Now update P
         return self.x
 
@@ -105,12 +106,12 @@ class PoseEKF(object):
         _F[2,4] = dt
         return _F
 
-    def h(self,x,u):
+    def h(self,x):
         # map x --> observations vector
         # u is only needed here because encoder needs to simulate input :P
         # obs = [gps, gyro, magneto, compass, encoder] #TODO: magneto and compass are redundant; try removing one
         # Accelerometer not being used #TODO: consider augmenting state definition
-        return np.vstack((gps.h(x), gyroscope.h(x), magnetometer.h(x), compass.h(x), encoder.h(u)))
+        return np.vstack((gps.h(x), gyroscope.h(x), magnetometer.h(x), compass.h(x), encoder.h(x)))
 
     def H(self,x):
         # Jacobian of h
@@ -118,68 +119,6 @@ class PoseEKF(object):
 
 def add_noise(x,s):
     return x + np.random.normal(loc=0,scale=s,size=x.shape)
-
-def rpm2rps(r):
-    return r * (2 * pi / 60)
-
-def v2t(V,w):
-    # voltage to motor torque
-    # T(V,w)
-    k = 1. / rpm2rps(1.315 * (500/12))
-    R = 2.45
-    return V*k/R - k*k*w/R
-
-def t2a(T):
-    # M = Mass of Wheel
-    M = .1 # kg
-    I = (1./2)*M*W_R**2
-    return T/I
-
-def u2a(x,u):
-    # U as voltage for Both motors
-    # convert to v_l, v_r
-    x,y,t,v,w = x[:,0]
-
-    rml = w*W_D
-    rpl = v*2.0
-    
-    v_r = (rml + rpl) / 2.0
-    v_l = (rpl - rml) / 2.0
-
-    w_l = v_l / W_R
-    w_r = v_r / W_R
-    
-    V_l,V_r = u[:,0]
-    T_l,T_r = v2t(V_l,w_l), v2t(V_r,w_r)
-    a_l,a_r = t2a(T_l), t2a(T_r)
-
-    a = (a_l + a_r) / 2.0
-    return a
-
-def u2v(x,u):
-    # U as voltage for Both motors
-    # convert to v_l, v_r
-    x,y,t,v,w = x[:,0]
-
-    rml = w*W_D
-    rpl = v*2.0
-    
-    v_r = (rml + rpl) / 2.0
-    v_l = (rpl - rml) / 2.0
-
-    w_l = v_l / W_R
-    w_r = v_r / W_R
-    
-    V_l,V_r = u[:,0]
-    T_l,T_r = v2t(V_l,w_l), v2t(V_r,w_r)
-    a_l,a_r = t2a(T_l), t2a(T_r)
-    #print a_l, a_r
-    w_l += a_l * dt
-    w_r += a_r * dt
-    v_l = w_l * W_R
-    v_r = w_r * W_R
-    return v_l, v_r
-
 def move(x,u):
     # diff drive, prediction based on its wheel encoder
 
@@ -208,18 +147,12 @@ def move(x,u):
     x,y,t = (dot(M,colvec(x-iccx, y-iccy,t)) + colvec(iccx,iccy,wdt))[:,0]
     t = norm_angle(t)
 
-    G = colvec(2e-2,2e-2,1e-2,2e-2,2e-2)
+    G = colvec(2e-2,2e-2,1e-2,2e-3,2e-3)
     N = np.random.normal(size=(5,1))*G
     return colvec(x,y,t,v,w) + N
 
 def sense(x,u):
-
-    # obtain v_l, v_r from x,u when u is voltage
-    v,w = x[3:,0]
-    v_l,v_r = u2v(x,u)
-    u = colvec(v_l, v_r)
-
-    return np.vstack((gps.get(x),gyroscope.get(x),magnetometer.get(x),compass.get(x),encoder.get(u)))
+    return np.vstack((gps.get(x),gyroscope.get(x),magnetometer.get(x),compass.get(x),encoder.get(x,u)))
 
 if __name__ == "__main__":
     ekf = PoseEKF(5,8)
