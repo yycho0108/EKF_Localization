@@ -139,7 +139,8 @@ class Accelerometer(Sensor):
         s_g = 2.8e-3
         s = s_g * 9.8 # m/s^2
         super(Accelerometer,self).__init__(s,1)
-    def get(self,x,a):
+        self.v = None
+    def get(self,x):
         # cheat a bit and return velocity reading?
         return self.add_noise(self.h(x))
     def h(self,x,a):
@@ -161,6 +162,8 @@ class IMU(Sensor):
     def H(self,x):
         pass
 
+# v = w*r
+
 class Encoder(Sensor):
     def __init__(self,r,l):
         # TODO : add resolution constraint (# TICKS)
@@ -175,17 +178,29 @@ class Encoder(Sensor):
         # real!
         r,l = self.r, self.l
         v_l,v_r = u2v(x,u)
-        v = (v_r+v_l) / 2
-        w = 2 * (v_r - v) / (l/2)
-        res = colvec(v,w)
-        return self.add_noise(res)
+        w_l,w_r = v_l / W_R, v_r / W_R
+        return self.add_noise(colvec(w_l, w_r))
+        #v = (v_r+v_l) / 2
+        #w = 2 * (v_r - v) / (l/2)
+        #res = colvec(v,w)
+        #return self.add_noise(res)
     def h(self,x):
-        # v,w based on x
-        return x[3:,:] # v,w
+        # w_l, w_r based on v,w
+        v,w = x[3:,0]
+        # v_r+v_l = v*2
+        # v_r-v_l = w*W_D
+        p = v*2
+        m = w*W_D
+        v_l, v_r = (p+m)/2.0, (p-m)/2.0
+        w_l, w_r = v_l/W_R, v_r/W_R
+        return colvec(w_l, w_r)
     def H(self,x):
+        #v,w -> w_l, w_r
         res = np.zeros((2,5))
-        res[0,3] = 1. # v
-        res[1,4] = 1. # w
+        res[0,3] = 1./W_R
+        res[0,4] = W_D/(2.*W_R)
+        res[1,3] = 1./W_R
+        res[1,4] = -W_D/(2.*W_R)
         return res
 
 class Beacon(Sensor):
@@ -270,12 +285,12 @@ accelerometer = Accelerometer()
 imu = IMU()
 encoder = Encoder(W_R,W_D)
 beacon_1 = Beacon(0,0) # beacon at origin
-beacon_2 = Beacon(5,5) # beacon at origin
-beacon_3 = Beacon(0,5) # beacon at origin
-beacon_4 = Beacon(5,0) # beacon at origin
+beacon_2 = Beacon(5,5) # beacon
+beacon_3 = Beacon(0,5) # beacon
+beacon_4 = Beacon(5,0) # beacon
 
 sensors = [gyroscope,magnetometer,compass,encoder,gps]#,beacon_1,beacon_2]
-#sensors = [gyroscope,magnetometer,compass,encoder,beacon_1,beacon_2,beacon_3,beacon_4]
+#sensors = [gyroscope,magnetometer,compass,encoder]#,beacon_1,beacon_2,beacon_3,beacon_4]
 
 def sense(x,u):
     encoder.set_u(u) # indicate u = voltage cmds

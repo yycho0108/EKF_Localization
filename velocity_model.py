@@ -5,7 +5,7 @@
 
 import numpy as np
 from abc import ABCMeta, abstractmethod
-from sensor import sensors, sense 
+from sensor import sensors, sense
 from utility import *
 from matplotlib import pyplot as plt
 from comet import CometAnimation
