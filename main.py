@@ -7,6 +7,7 @@ from display import Display, RobotObject
 from velocity_model import PoseEKF, sensors, sense, move
 import numpy as np
 from utility import *
+
 W,H = 1000,1000
 
 def quit():
@@ -35,8 +36,8 @@ def get_cmd():
 def main():
     # == STATE ==
     x_r = np.random.rand(5,1) # real state
-    x_e = np.random.rand(5,1) # real state
-    #x_e = x_r.copy() # estimated state
+    #x_e = np.random.rand(5,1) # real state
+    x_e = x_r.copy() # estimated state
     ekf = PoseEKF(5,sensors)
 
     # == DISPLAY ==
@@ -50,9 +51,10 @@ def main():
             break
         u = get_cmd()
 
-        x_e = ekf.predict(x_e)
         # print ekf.P[3,3]
         # print 'e,r', x_e[3], x_r[3],
+        x_e = ekf.predict(x_e)
+        x_e = ekf.predict(x_e)
         x_r = move(x_r, u)
         z = sense(x_r, u) # observe based on REAL states
         ekf.update(z,u)

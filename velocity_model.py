@@ -90,16 +90,16 @@ class PoseEKF(object):
         return res
     
     def F(self,x):
-        # Jacobian of f
-        _F = np.eye(5)
+        # Jacobian of f(x), w.r.t. x
+        F = np.eye(5)
         th,v = x[2:4,:]
         s,c = sin(th), cos(th)
-        _F[0,2] = -v*s*dt
-        _F[0,3] = c*dt
-        _F[1,2] = v*c*dt
-        _F[1,3] = s*dt
-        _F[2,4] = dt
-        return _F
+        F[0,2] = -v*s*dt
+        F[0,3] = c*dt
+        F[1,2] = v*c*dt
+        F[1,3] = s*dt
+        F[2,4] = dt
+        return F
 
     def h(self,x):
         # map x --> observations vector
@@ -142,7 +142,7 @@ def move(x,u):
     x,y,t = (dot(M,colvec(x-iccx, y-iccy,t)) + colvec(iccx,iccy,wdt))[:,0]
     t = norm_angle(t)
 
-    G = colvec(2e-2,2e-2,1e-2,2e-3,2e-3)
+    G = colvec(1e-2,1e-2,4e-2,8e-2,8e-2)
     N = np.random.normal(size=(5,1))*G
     return colvec(x,y,t,v,w) + N
 

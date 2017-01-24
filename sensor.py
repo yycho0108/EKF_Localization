@@ -51,24 +51,26 @@ class GPS(Sensor):
 
     def get(self,x):
         #return self.h(x)
-        return self.add_noise(self.h(x))
+        z = self.add_noise(self.h(x))
+        print 'x vs. gps_x', x[:2,0], self.h_inv(z)
+        return z
 
     def h(self,x):
         # mapping from state to observation
         lt,ln,ER,Rl = self.lt,self.ln,self.ER,self.Rl # Unpack
         dx,dy = x[:2,0] # change from origin
-        dp = dy / (ER * 2 * pi) * 360
-        dt = dx / (Rl * 2 * pi) * 360
-        return colvec(ln+dt,lt+dp) # Fake GPS Coordinates
+        dph = dy / (ER * 2 * pi) * 360
+        dth = dx / (Rl * 2 * pi) * 360
+        return colvec(ln+dth,lt+dph) # Fake GPS Coordinates
 
     # Invert Transformation...
     def h_inv(self,z):
         # mapping from observation to state
         lt,ln,ER,Rl = self.lt,self.ln,self.ER,self.Rl # Unpack
         t,p = z[:,0]
-        dp,dt = p-lt,t-ln
-        dy = (dp * pi / 180) * ER
-        dx = (dt * pi / 180) * Rl
+        dph,dth = p-lt,t-ln
+        dy = (dph * pi / 180) * ER
+        dx = (dth * pi / 180) * Rl
         return colvec(dx,dy)
 
     def H(self,x):
@@ -167,7 +169,7 @@ class IMU(Sensor):
 class Encoder(Sensor):
     def __init__(self,r,l):
         # TODO : add resolution constraint (# TICKS)
-        s = 1e-1 # Arbitrary, stddev .1m
+        s = 5e-1 # Arbitrary, stddev .5 rad/s ish
         super(Encoder,self).__init__(s,2)
         self.r = r # Wheel radius
         self.l = l # Wheel Distance
@@ -178,30 +180,44 @@ class Encoder(Sensor):
         # real!
         r,l = self.r, self.l
         v_l,v_r = u2v(x,u)
-        w_l,w_r = v_l / W_R, v_r / W_R
-        return self.add_noise(colvec(w_l, w_r))
-        #v = (v_r+v_l) / 2
-        #w = 2 * (v_r - v) / (l/2)
-        #res = colvec(v,w)
-        #return self.add_noise(res)
+        v = (v_r+v_l) / 2
+        w = 2 * (v_r - v) / (l/2)
+        res = colvec(v,w)
+        return self.add_noise(res)
     def h(self,x):
-        # w_l, w_r based on v,w
-        v,w = x[3:,0]
-        # v_r+v_l = v*2
-        # v_r-v_l = w*W_D
-        p = v*2
-        m = w*W_D
-        v_l, v_r = (p+m)/2.0, (p-m)/2.0
-        w_l, w_r = v_l/W_R, v_r/W_R
-        return colvec(w_l, w_r)
+        # v,w based on x
+        return x[3:,:] # v,w
     def H(self,x):
-        #v,w -> w_l, w_r
         res = np.zeros((2,5))
-        res[0,3] = 1./W_R
-        res[0,4] = W_D/(2.*W_R)
-        res[1,3] = 1./W_R
-        res[1,4] = -W_D/(2.*W_R)
+        res[0,3] = 1. # v
+        res[1,4] = 1. # w
         return res
+
+#    def get(self,x):
+#        u = self.u
+#        # real!
+#        r,l = self.r, self.l
+#        v_l,v_r = u2v(x,u)
+#        w_l,w_r = v_l/W_R, v_r/W_R
+#        return self.add_noise(colvec(w_l, w_r))
+#    def h(self,x):
+#        # w_l, w_r based on v,w
+#        v,w = x[3:,0]
+#        # v_r+v_l = v*2
+#        # v_r-v_l = w*W_D
+#        p = v*2
+#        m = w*W_D
+#        v_l, v_r = (p-m)/2., (p+m)/2.
+#        w_l, w_r = v_l/W_R, v_r/W_R
+#        return colvec(w_l, w_r)
+#    def H(self,x):
+#        #v,w -> w_l, w_r
+#        res = np.zeros((2,5))
+#        res[0,3] = 1./W_R
+#        res[0,4] = -W_D/(2.*W_R)
+#        res[1,3] = 1./W_R
+#        res[1,4] = W_D/(2.*W_R)
+#        return res
 
 class Beacon(Sensor):
     def __init__(self,x,y):
@@ -278,6 +294,7 @@ def test_enc(x,u):
 
 # instantiate virtual sensors
 gps = GPS()
+gps_2 = GPS()
 gyroscope = Gyroscope()
 magnetometer = Magnetometer()
 compass = Compass()
@@ -289,8 +306,11 @@ beacon_2 = Beacon(5,5) # beacon
 beacon_3 = Beacon(0,5) # beacon
 beacon_4 = Beacon(5,0) # beacon
 
-sensors = [gyroscope,magnetometer,compass,encoder,gps]#,beacon_1,beacon_2]
-#sensors = [gyroscope,magnetometer,compass,encoder]#,beacon_1,beacon_2,beacon_3,beacon_4]
+#sensors = [gps]
+# sensors = [encoder]
+# sensors = [gps,encoder]
+sensors = [encoder]#,beacon_1,beacon_2]
+# sensors = [gyroscope,magnetometer,compass,encoder]#,beacon_1,beacon_2,beacon_3,beacon_4]
 
 def sense(x,u):
     encoder.set_u(u) # indicate u = voltage cmds

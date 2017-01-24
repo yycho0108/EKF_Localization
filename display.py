@@ -57,6 +57,17 @@ class RobotObject(pygame.sprite.Sprite):
             pygame.draw.lines(screen, self.t_col, False,self.trajectory)
         screen.blit(r_img, rect)
 
+class GPSObject(pygame.sprite.Sprite):
+    def __init__(self):
+        self.x = self.y = 0
+        pass
+    def update(self,x):
+        x,y = x[:2,0]
+        self.x,self.y = CX + m2p(x), CY - m2p(y)
+    def draw(self,screen):
+        pygame.draw.point(screen, (self.x,self.y))
+        
+
 class Display(object):
     def __init__(self, w,h):
         pygame.init()
