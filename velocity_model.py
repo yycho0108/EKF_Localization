@@ -160,7 +160,6 @@ if __name__ == "__main__":
     r_vel = []
     e_vel = []
     err = []
-    # TODO : Plot Velocities
 
     u = np.random.normal(size=(2,1), scale=10) # cmd, in volts
     b = np.random.normal(size=(2,1), scale=5)

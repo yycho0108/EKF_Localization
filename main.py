@@ -16,6 +16,8 @@ def quit():
     for event in pygame.event.get():
         if event.type == QUIT:
             return True
+        if event.type == KEYDOWN and event.key == K_ESCAPE:
+            return True
     return False
 
 def get_cmd():
@@ -57,6 +59,7 @@ def main():
     # == LOOP ==
     while True:
         if quit():
+            pygame.quit()
             break
         u = get_cmd()
 
