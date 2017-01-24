@@ -3,10 +3,12 @@
 import pygame
 from pygame.locals import *
 
-from display import Display, RobotObject
+from display import Display, RobotObject, RobotEstimateObject, GPSObject
 from velocity_model import PoseEKF, sensors, sense, move
 import numpy as np
 from utility import *
+
+from sensor import GPS
 
 W,H = 1000,1000
 
@@ -36,14 +38,15 @@ def get_cmd():
 def main():
     # == STATE ==
     x_r = np.random.rand(5,1) # real state
-    #x_e = np.random.rand(5,1) # real state
-    x_e = x_r.copy() # estimated state
+    x_e = np.random.rand(5,1) # real state
+    #x_e = x_r.copy() # estimated state
     ekf = PoseEKF(5,sensors)
 
     # == DISPLAY ==
     disp = Display(W,H)
     r_r = RobotObject((255,128,128)) # real robot
-    r_e = RobotObject((128,255,255)) # Estimated Robot
+    r_e = RobotEstimateObject((128,255,255)) # Estimated Robot
+    #g = GPSObject()
 
     # == LOOP ==
     while True:
@@ -54,17 +57,21 @@ def main():
         # print ekf.P[3,3]
         # print 'e,r', x_e[3], x_r[3],
         x_e = ekf.predict(x_e)
-        x_e = ekf.predict(x_e)
+        #print ekf.P[0,0], ekf.P[1,1]
         x_r = move(x_r, u)
         z = sense(x_r, u) # observe based on REAL states
         ekf.update(z,u)
 
         # display-related
         r_r.update(x_r)
-        r_e.update(x_e)
+        r_e.update(x_e,ekf.P[:2,:2])
+
+        # update this when changing around the order of the sensors
+        # g.update(GPS.h_inv(z[:2,:]))
+
         disp.draw([r_e, r_r])
         disp.update()
-        pygame.time.wait(100)
+        pygame.time.wait(30)
 
 if __name__ == "__main__":
     main()

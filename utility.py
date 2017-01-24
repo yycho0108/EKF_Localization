@@ -10,7 +10,7 @@ r2d = np.rad2deg
 # parameters
 W_R = 0.2 # Wheel Rad
 W_D = 0.3 # Wheel Dist
-dt = 1e-2 # .01 sec
+dt = 5e-3 # .01 sec
 
 def colvec(*args):
     return np.atleast_2d(args).T

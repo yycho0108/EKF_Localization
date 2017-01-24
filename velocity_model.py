@@ -10,6 +10,8 @@ from utility import *
 from matplotlib import pyplot as plt
 from comet import CometAnimation
 
+q_model = (1e-3, 1e-3, 4e-2, 8e-2, 8e-2) # process noise model
+
 # TODO : possibly 
 class PoseEKF(object):
     def __init__(self, n, sensors):
@@ -18,7 +20,7 @@ class PoseEKF(object):
         # TODO : modify P initialization and (especially) R w.r.t sensor characteristics
 
         p = 1e+3 # start out with large uncertainty
-        q = 1e-1
+        q = 1e-3
 
         # Initialization values
         self.x = np.zeros((n,1))
@@ -26,7 +28,8 @@ class PoseEKF(object):
         self.P = np.eye(n) * p
         # (Initial) Covariance
 
-        self.Q = np.eye(n) * q
+        #self.Q = np.eye(n) * q
+        self.Q = np.diag(q_model)
         # Process Noise Model -- depends on robot locomotion accuracy
         vs = []
         for s in sensors:
@@ -76,6 +79,7 @@ class PoseEKF(object):
         H = self.H(x)
         # Problem : Encoder Error is small because h is based on u
         y = z - self.h(x) # Y = Measurement "Error" or Innovation
+        print 
         S = dot(H,P,H.T) + R # S = Innovation Covariance
         K = dot(P,H.T,np.linalg.inv(S)) # K = "Optimal" Kalman Gain; pinv for numerical stability
         dx = dot(K,y)
@@ -142,7 +146,7 @@ def move(x,u):
     x,y,t = (dot(M,colvec(x-iccx, y-iccy,t)) + colvec(iccx,iccy,wdt))[:,0]
     t = norm_angle(t)
 
-    G = colvec(1e-2,1e-2,4e-2,8e-2,8e-2)
+    G = colvec(*q_model)
     N = np.random.normal(size=(5,1))*G
     return colvec(x,y,t,v,w) + N
 

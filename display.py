@@ -27,8 +27,8 @@ class RobotObject(pygame.sprite.Sprite):
         
         poly = [(left,top),(left,bot),(l/2,bot),(right,l/2),(l/2,top)]
 
-        self.img.fill((255,255,255))
-        self.img.set_colorkey((255,255,255))
+        self.img.fill(WHITE)
+        self.img.set_colorkey(WHITE)
         pygame.draw.polygon(self.img,self.color,poly)
 
         self.w,self.h = w,h
@@ -57,6 +57,34 @@ class RobotObject(pygame.sprite.Sprite):
             pygame.draw.lines(screen, self.t_col, False,self.trajectory)
         screen.blit(r_img, rect)
 
+class RobotEstimateObject(RobotObject):
+    def __init__(self,color):
+        super(RobotEstimateObject,self).__init__(color)
+        self.P = None
+        self.margin = pygame.Surface((200,200))
+        self.margin.set_colorkey(WHITE)
+        self.margin.set_alpha(128)
+    def update(self,x,P):
+        super(RobotEstimateObject,self).update(x)
+        self.P = P
+        self.margin.fill(WHITE)
+
+    def draw(self,screen):
+        x,y,t,v,_ = self.x[:,0]
+        x,y,v = CX + m2p(x), CY - m2p(y), m2p(v) # center of ellipse
+
+        px,py = self.P[0,0], self.P[1,1]
+
+        dx,dy = 2*m2p(np.sqrt(np.abs(px))), 2*m2p(np.sqrt(np.abs(py))) # 2 * stddev
+
+        e_rect = (100-dx,100-dy, 2*dx, 2*dy) #left,top,width,height
+        pygame.draw.ellipse(self.margin,self.t_col,e_rect,0) 
+
+        rect = self.margin.get_rect()
+        rect.center = (x,y)
+        screen.blit(self.margin, rect)
+        super(RobotEstimateObject,self).draw(screen)
+
 class GPSObject(pygame.sprite.Sprite):
     def __init__(self):
         self.x = self.y = 0
@@ -65,7 +93,7 @@ class GPSObject(pygame.sprite.Sprite):
         x,y = x[:2,0]
         self.x,self.y = CX + m2p(x), CY - m2p(y)
     def draw(self,screen):
-        pygame.draw.point(screen, (self.x,self.y))
+        pygame.draw.circle(screen, BLACK, (int(self.x),int(self.y)), 5)
         
 
 class Display(object):

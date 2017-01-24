@@ -35,24 +35,21 @@ class Sensor(object):
 # Absolute Position, Lat/Long
 # TODO : simulate losing signal
 class GPS(Sensor):
+    lt = 42.2932
+    ln = -71.2637 # Origin - Olin's Location
+    ER = 6.371e6 # Earth's Radius in M
+    Rl = ER * np.abs(cos(d2r(lt))) # Radius at Latitude
     def __init__(self):
-        lt = 42.2932
-        ln = -71.2637 # Origin - Olin's Location
-        ER = 6.371e6 # Earth's Radius in M
-        Rl = ER * np.abs(cos(d2r(lt))) # Radius at Latitude
-
         s_m = 1.5 # stddev, in Meters-ish
 
         # variance was around 1.4~3.0, sttdev = about 1.5
-        s = s_m * (180./pi) / ER # stddev in Degrees(lat,lonog)
+        s = s_m * (180./pi) / GPS.ER # stddev in Degrees(lat,long)
         super(GPS,self).__init__(s,2) # added noise in terms of deg.
 
-        self.lt,self.ln,self.ER,self.Rl = lt,ln,ER,Rl
-
     def get(self,x):
-        #return self.h(x)
+        #return self.h(x) + np.random.normal(loc=0,scale=self.sigma,size=(2,1))
         z = self.add_noise(self.h(x))
-        print 'x vs. gps_x', x[:2,0], self.h_inv(z)
+        #print 'x vs. gps_x', x[:2,0], GPS.h_inv(z)
         return z
 
     def h(self,x):
@@ -64,9 +61,10 @@ class GPS(Sensor):
         return colvec(ln+dth,lt+dph) # Fake GPS Coordinates
 
     # Invert Transformation...
-    def h_inv(self,z):
+    @staticmethod
+    def h_inv(z):
         # mapping from observation to state
-        lt,ln,ER,Rl = self.lt,self.ln,self.ER,self.Rl # Unpack
+        lt,ln,ER,Rl = GPS.lt,GPS.ln,GPS.ER,GPS.Rl # Unpack
         t,p = z[:,0]
         dph,dth = p-lt,t-ln
         dy = (dph * pi / 180) * ER
@@ -98,7 +96,8 @@ class Gyroscope(Sensor):
 
 class Magnetometer(Sensor):
     def __init__(self):
-        self.decl = -14.61 # decl = true_north - mag_north
+        #self.decl = -14.61 # decl = true_north - mag_north
+        self.decl = 0.0
         s_g = 1.1e-3 # white noise 1.1 mG
         s = s_g / .52
         # assuming 0.52G (Total Field Strength) corresponds to "1"
@@ -169,7 +168,7 @@ class IMU(Sensor):
 class Encoder(Sensor):
     def __init__(self,r,l):
         # TODO : add resolution constraint (# TICKS)
-        s = 5e-1 # Arbitrary, stddev .5 rad/s ish
+        s = 1e-2 # Arbitrary, stddev .1m
         super(Encoder,self).__init__(s,2)
         self.r = r # Wheel radius
         self.l = l # Wheel Distance
@@ -180,19 +179,31 @@ class Encoder(Sensor):
         # real!
         r,l = self.r, self.l
         v_l,v_r = u2v(x,u)
-        v = (v_r+v_l) / 2
-        w = 2 * (v_r - v) / (l/2)
-        res = colvec(v,w)
-        return self.add_noise(res)
+        w_l,w_r = v_l / W_R, v_r / W_R
+        return self.add_noise(colvec(w_l, w_r))
+        #v = (v_r+v_l) / 2
+        #w = 2 * (v_r - v) / (l/2)
+        #res = colvec(v,w)
+        #return self.add_noise(res)
     def h(self,x):
-        # v,w based on x
-        return x[3:,:] # v,w
+        # w_l, w_r based on v,w
+        v,w = x[3:,0]
+        # v_r+v_l = v*2
+        # v_r-v_l = w*W_D
+        p = v*2
+        m = w*W_D
+        v_l, v_r = (p-m)/2.0, (p+m)/2.0
+        w_l, w_r = v_l/W_R, v_r/W_R
+        return colvec(w_l, w_r)
     def H(self,x):
+        #v,w -> w_l, w_r
         res = np.zeros((2,5))
-        res[0,3] = 1. # v
-        res[1,4] = 1. # w
+        res[0,3] = 1./W_R
+        res[0,4] = -W_D/(2.*W_R)
+        res[1,3] = 1./W_R
+        res[1,4] = W_D/(2.*W_R)
         return res
-
+# Alternative Model
 #    def get(self,x):
 #        u = self.u
 #        # real!
@@ -252,7 +263,7 @@ def test_gps(x):
     z = gps.get(x)
     print 'x', x
     print 'x->z', z
-    print 'z->x', gps.h_inv(z)
+    print 'z->x', GPS.h_inv(z)
     print 'H', gps.H(x)
 
 def test_gyro(x):
@@ -287,7 +298,8 @@ def test_enc(x,u):
     r = .1 # m
     l = .25 # m
     enc = Encoder(r,l)
-    z = enc.get(x,u)
+    enc.set_u(u)
+    z = enc.get(x)
     print 'x', x
     print 'x->z', z
     print 'H', enc.H(x)
@@ -307,10 +319,10 @@ beacon_3 = Beacon(0,5) # beacon
 beacon_4 = Beacon(5,0) # beacon
 
 #sensors = [gps]
-# sensors = [encoder]
-# sensors = [gps,encoder]
-sensors = [encoder]#,beacon_1,beacon_2]
-# sensors = [gyroscope,magnetometer,compass,encoder]#,beacon_1,beacon_2,beacon_3,beacon_4]
+#sensors = [encoder]
+#sensors = [gps,encoder]
+#sensors = [gps,encoder]#,beacon_1,beacon_2]
+sensors = [gps,gyroscope,magnetometer,encoder]#,beacon_1,beacon_2,beacon_3,beacon_4]
 
 def sense(x,u):
     encoder.set_u(u) # indicate u = voltage cmds
