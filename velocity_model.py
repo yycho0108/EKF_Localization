@@ -17,7 +17,6 @@ class PoseEKF(object):
     def __init__(self, n, sensors):
         self.sensors = sensors
         m = len(self.sensors)
-        # TODO : modify P initialization and (especially) R w.r.t sensor characteristics
 
         p = 1e+3 # start out with large uncertainty
         q = 1e-3
@@ -79,7 +78,6 @@ class PoseEKF(object):
         H = self.H(x)
         # Problem : Encoder Error is small because h is based on u
         y = z - self.h(x) # Y = Measurement "Error" or Innovation
-        print 
         S = dot(H,P,H.T) + R # S = Innovation Covariance
         K = dot(P,H.T,np.linalg.inv(S)) # K = "Optimal" Kalman Gain; pinv for numerical stability
         dx = dot(K,y)
@@ -108,7 +106,6 @@ class PoseEKF(object):
     def h(self,x):
         # map x --> observations vector
         # u is only needed here because encoder needs to simulate input :P
-        # obs = [gps, gyro, magneto, compass, encoder] #TODO: magneto and compass are redundant; try removing one
         # Accelerometer not being used #TODO: consider augmenting state definition
         hs = [s.h(x) for s in self.sensors]
         return np.vstack(hs)

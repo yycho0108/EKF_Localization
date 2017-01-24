@@ -97,7 +97,7 @@ class Gyroscope(Sensor):
 class Magnetometer(Sensor):
     def __init__(self):
         #self.decl = -14.61 # decl = true_north - mag_north
-        self.decl = 0.0
+        self.decl = 0.0 # TODO : How do I account for bias?
         s_g = 1.1e-3 # white noise 1.1 mG
         s = s_g / .52
         # assuming 0.52G (Total Field Strength) corresponds to "1"

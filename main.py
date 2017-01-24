@@ -3,7 +3,7 @@
 import pygame
 from pygame.locals import *
 
-from display import Display, RobotObject, RobotEstimateObject, GPSObject
+from display import Display, RobotObject, RobotEstimateObject, GPSObject, StatusObject 
 from velocity_model import PoseEKF, sensors, sense, move
 import numpy as np
 from utility import *
@@ -34,6 +34,8 @@ def get_cmd():
     else:
         return colvec(0,0)
 
+def status_string(x_r, x_e):
+    return str(x_r) + str(x_e)
 
 def main():
     # == STATE ==
@@ -46,6 +48,10 @@ def main():
     disp = Display(W,H)
     r_r = RobotObject((255,128,128)) # real robot
     r_e = RobotEstimateObject((128,255,255)) # Estimated Robot
+
+    s_r = StatusObject((0,0),'State')
+    s_e = StatusObject((0,200),'Estimated State')
+
     #g = GPSObject()
 
     # == LOOP ==
@@ -65,11 +71,13 @@ def main():
         # display-related
         r_r.update(x_r)
         r_e.update(x_e,ekf.P[:2,:2])
+        s_r.update(x_r)
+        s_e.update(x_e)
 
         # update this when changing around the order of the sensors
         # g.update(GPS.h_inv(z[:2,:]))
 
-        disp.draw([r_e, r_r])
+        disp.draw([r_e, r_r, s_r, s_e])
         disp.update()
         pygame.time.wait(30)
 

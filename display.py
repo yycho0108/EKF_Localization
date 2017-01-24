@@ -94,7 +94,27 @@ class GPSObject(pygame.sprite.Sprite):
         self.x,self.y = CX + m2p(x), CY - m2p(y)
     def draw(self,screen):
         pygame.draw.circle(screen, BLACK, (int(self.x),int(self.y)), 5)
-        
+
+class StatusObject(pygame.sprite.Sprite):
+    def __init__(self,pos,title):
+        self.pos = pos
+        self.title = title
+    def update(self,x):
+        self.x = x
+    def draw(self,screen):
+        f = pygame.font.SysFont("monospace", 15)
+        srcx = self.pos[0]
+        srcy = self.pos[1]
+
+        # title
+        label = f.render(self.title, 1, (0,0,0))
+        screen.blit(label,(srcx, srcy))
+
+        for i, (n,v) in enumerate(zip(['x','y','t','v','w'],self.x[:,0])):
+            txt = '{} : {}'.format(n,v)
+            label = f.render(txt, 1, (0,0,0))
+            screen.blit(label,(srcx, srcy + (i+1)*25))
+        # render text
 
 class Display(object):
     def __init__(self, w,h):
