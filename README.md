@@ -1,8 +1,10 @@
-# EKF_Localization
+# EKF\_Localization
 
 ===
 
 ## Demo Video
+
+[Youtube Link](https://youtu.be/q2WupFdK0Eo)
 
 (To Be Updated)
 
@@ -14,9 +16,9 @@ It is equipped with the following virtual sensors, whose signals are generated f
 - [x] Gyroscope (Angular Velocity)
 - [x] Magnetometer (Angular Position)
 - [x] Compass (Angular Position)
-- [ ] Accelerometer (Linear Acceleration)
+- [ ] Accelerometer (Linear Acceleration) - Requires More States to Track
 - [x] Wheel Encoder (Linear/Angular Velocity)
-- [ ] Beacons (Distance from Landmark)
+- [x] Beacons (Distance from Landmark)
 
 
 ## Controls

@@ -320,9 +320,9 @@ beacon_4 = Beacon(5,0) # beacon
 
 #sensors = [gps]
 #sensors = [encoder]
-sensors = [gps,encoder]
+#sensors = [gps,encoder]
 #sensors = [gps,encoder,gyroscope,magnetometer]
-#sensors = [gps,encoder]#,beacon_1,beacon_2]
+sensors = [encoder,gyroscope,magnetometer,gps]#,beacon_1,beacon_2]
 #sensors = [gps,gyroscope,magnetometer,encoder]#,beacon_1,beacon_2,beacon_3,beacon_4]
 
 def sense(x,u):
